@@ -1,0 +1,39 @@
+name: Extract user rules
+
+on:
+  # 支持在 GitHub Actions 页面手动触发。
+  workflow_dispatch:
+
+  # GitHub Actions 的 cron 使用 UTC；这里对应北京时间每天 04:00。
+  schedule:
+    - cron: "0 20 * * *"
+
+permissions:
+  # 允许工作流把生成后的 txt 文件提交回仓库。
+  contents: write
+
+jobs:
+  extract-user-rules:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 拉取仓库代码。
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 配置 Python 环境，脚本只依赖标准库。
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # 生成完整规则、白名单规则和黑名单规则 txt。
+      - name: Extract user rules
+        run: python extract_user_rules.py
+
+      # 仅当 txt 内容发生变化时自动提交。
+      - name: Commit generated txt files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update generated user rules"
+          file_pattern: "user_rules.txt allow_rules.txt block_rules.txt"
