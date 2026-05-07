@@ -1,4 +1,4 @@
-name: Extract user rules
+name: Build user rules
 
 on:
   # 支持在 GitHub Actions 页面手动触发。
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  extract-user-rules:
+  build-user-rules:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,13 +27,28 @@ jobs:
         with:
           python-version: "3.x"
 
+      # 下载 mihomo，用于把清洗后的 domain 文本转换成 .mrs。
+      - name: Install mihomo
+        run: |
+          set -euo pipefail
+          VER="$(curl -fsSL https://github.com/MetaCubeX/mihomo/releases/latest/download/version.txt)"
+          curl -fL -o mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/${VER}/mihomo-linux-amd64-compatible-${VER}.gz"
+          gzip -d mihomo.gz
+          chmod +x mihomo
+          sudo mv mihomo /usr/local/bin/mihomo
+          mihomo -v
+
       # 生成完整规则、白名单规则和黑名单规则 txt。
       - name: Extract user rules
         run: python extract_user_rules.py
 
-      # 仅当 txt 内容发生变化时自动提交。
-      - name: Commit generated txt files
+      # 合并 GOODBYEADS 与本地黑白名单，清洗后生成 mihomo .mrs。
+      - name: Build mihomo mrs rules
+        run: python build_mihomo_mrs.py --require-mihomo
+
+      # 仅当生成文件内容发生变化时自动提交。
+      - name: Commit generated rule files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update generated user rules"
-          file_pattern: "user_rules.txt allow_rules.txt block_rules.txt"
+          commit_message: "Update generated rules"
+          file_pattern: "user_rules.txt allow_rules.txt block_rules.txt mihomo_allow_domains.txt mihomo_block_domains.txt allow_rules.mrs block_rules.mrs"
